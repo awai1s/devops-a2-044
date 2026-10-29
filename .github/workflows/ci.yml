@@ -1,0 +1,44 @@
+
+name: Portfolio CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Check required files
+        run: |
+          test -s index.html
+          test -s style.css
+          test -f Dockerfile
+
+      - name: Validate portfolio content
+        run: |
+          grep -q '<title>' index.html
+          grep -q 'FA23-BAI-044' index.html
+          grep -q 'href="style.css"' index.html
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to Docker Hub
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and optionally push image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/devops-a2:latest
